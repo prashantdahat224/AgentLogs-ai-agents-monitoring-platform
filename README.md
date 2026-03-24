@@ -76,7 +76,7 @@ LangSmith captures every step
       ↓
 AgentLogs fetches raw logs
       ↓
-Claude converts to simple language
+AgentLogs converts to simple language
       ↓
 Dashboard displays to business owner
 ```
