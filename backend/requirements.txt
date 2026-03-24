@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+langsmith
+anthropic
+python-dotenv
+pydantic

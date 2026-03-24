@@ -1,0 +1,39 @@
+.env
+users.json
+__pycache__/
+*.pyc
+.DS_Store
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# VS Code settings
+.vscode/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# Cache
+*.cache
+*.pkl
+*.db
+
+# OS-specific files
+.DS_Store
+Thumbs.db
