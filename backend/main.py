@@ -7,6 +7,12 @@ from storage import store_log, get_logs, get_summary
 from cohere_client import convert_log
 import uvicorn
 
+# added
+from typing import Optional 
+# added
+
+
+
 app = FastAPI(title="AgentLogs API", version="2.0.0")
 
 app.add_middleware(
@@ -32,7 +38,7 @@ class IngestRequest(BaseModel):
     status: str           # "success" or "error"
     input: str
     output: str
-    error: str | None = None
+    error: Optional[str] = None    # before=>//error: str | None = None
     duration_seconds: float
 
 # ─── Routes ───
