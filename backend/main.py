@@ -8,7 +8,7 @@ from cohere_client import convert_log
 import uvicorn
 
 # added
-from typing import Optional 
+#from typing import Optional 
 # added
 
 
@@ -38,7 +38,7 @@ class IngestRequest(BaseModel):
     status: str           # "success" or "error"
     input: str
     output: str
-    error: Optional[str] = None    # before=>//error: str | None = None
+    error: str | None = None # error: Optional[str] = None    # before=>//error: str | None = None
     duration_seconds: float
 
 # ─── Routes ───
