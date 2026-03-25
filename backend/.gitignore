@@ -37,3 +37,31 @@ dist/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+
+pip install agentlogs  # after you publish to PyPI
+# or locally:
+pip install ./sdk
+```
+
+---
+
+**.gitignore**
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+*.egg-info/
+dist/
+build/
+
+# Database files
+users.json
+logs.json
+
+# OS
+.DS_Store
+Thumbs.db

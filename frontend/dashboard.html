@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentLogs — Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232d9cff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/><rect x='8' y='2' width='8' height='4' rx='1' ry='1'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --bg3: #111820;
+    --border: #1e2a38;
+    --blue: #2d9cff;
+    --blue-dim: #1a5a8a;
+    --green: #00d98b;
+    --orange: #ff8c42;
+    --red: #ff4d6a;
+    --text: #e8edf2;
+    --text-dim: #7a8fa6;
+    --text-muted: #3d5166;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    overflow-x: hidden;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 18px 48px;
+    background: rgba(8,12,16,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600; font-size: 17px;
+    color: var(--blue);
+    letter-spacing: 0;
+    text-decoration: none;
+  }
+  .logo span { color: var(--text); }
+  .nav-cta-wrap { display: flex; justify-content: flex-end; }
+  .nav-cta {
+    background: var(--blue); color: #fff !important;
+    padding: 9px 20px; border-radius: 6px;
+    font-weight: 500; font-size: 13px;
+    transition: opacity 0.2s !important;
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .nav-cta:hover { opacity: 0.85; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── AUTH SCREEN ─── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 120px 24px 80px;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(45,156,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(45,156,255,0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+  }
+
+  .auth-wrap {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 400px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .tabs {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background: var(--bg2);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 11px;
+    border: none; border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn.active { background: var(--bg3); color: var(--text); }
+
+  .form-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+
+  label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--blue-dim); }
+  input::placeholder { color: var(--text-muted); }
+
+  .btn-submit {
+    width: 100%;
+    background: var(--blue); color: #fff;
+    padding: 12px 28px; border-radius: 8px;
+    font-weight: 600; font-size: 15px;
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s; margin-top: 4px;
+  }
+  .btn-submit:hover { background: #4aabff; transform: translateY(-1px); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .msg-error {
+    background: rgba(255,77,106,0.08);
+    border: 1px solid rgba(255,77,106,0.3);
+    border-radius: 6px; padding: 10px 14px;
+    font-size: 13px; color: var(--red);
+    margin-top: 12px; display: none;
+  }
+  .msg-success {
+    background: rgba(0,217,139,0.08);
+    border: 1px solid rgba(0,217,139,0.25);
+    border-radius: 6px; padding: 10px 14px;
+    font-size: 13px; color: var(--green);
+    margin-top: 12px; display: none;
+    line-height: 1.6;
+  }
+  .apikey-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 10px;
+    margin-top: 8px; word-break: break-all; color: var(--blue);
+  }
+
+  /* ─── DASHBOARD ─── */
+  #dashboard-screen { display: none; }
+
+  .dash-body {
+    max-width: 960px; margin: 0 auto;
+    padding: 100px 24px 60px;
+  }
+
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--blue);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .dash-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(18px, 2.5vw, 28px);
+    font-weight: 600; letter-spacing: -0.2px;
+    line-height: 1.35; margin-bottom: 32px;
+  }
+  .dash-title span { color: var(--blue); }
+
+  .stats-bar {
+    display: flex; justify-content: center; gap: 0;
+    flex-wrap: wrap;
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    width: 100%; margin-bottom: 32px;
+  }
+  .stat-item {
+    flex: 1; min-width: 160px;
+    padding: 24px 28px;
+    border-right: 1px solid var(--border);
+    background: var(--bg2); text-align: center;
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-num {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 20px; font-weight: 600; color: var(--blue);
+  }
+  .stat-num.green { color: var(--green); }
+  .stat-num.red   { color: var(--red); }
+  .stat-label {
+    font-size: 15px; color: var(--text-dim);
+    margin-top: 4px; font-weight: 500;
+  }
+
+  .apikey-row {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 16px;
+    margin-bottom: 32px;
+  }
+  .apikey-row-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 2px; white-space: nowrap;
+  }
+  .apikey-row-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--blue);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .btn-outline {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 14px;
+    color: var(--text-dim); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-outline:hover { color: var(--text); border-color: var(--blue-dim); }
+
+  .logs-header {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 16px;
+  }
+  .logs-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--text);
+  }
+
+  .log-entry {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 10px;
+    overflow: hidden; transition: border-color 0.2s;
+  }
+  .log-entry:hover { border-color: var(--blue-dim); }
+
+  .log-entry-header {
+    display: grid;
+    grid-template-columns: 36px 110px 1fr 140px 70px;
+    align-items: center; gap: 16px;
+    padding: 16px 20px; cursor: pointer;
+  }
+
+  .log-status-badge {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .badge-ok  { background: rgba(0,217,139,0.12); color: var(--green); border: 1px solid rgba(0,217,139,0.25); }
+  .badge-err { background: rgba(255,77,106,0.12); color: var(--red);   border: 1px solid rgba(255,77,106,0.25); }
+
+  .log-agent-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .log-summary-short {
+    font-size: 14px; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .log-ts {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-muted);
+    white-space: nowrap; text-align: right;
+  }
+  .log-dur {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-dim); text-align: right;
+  }
+
+  .log-detail {
+    display: none; padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 14px; color: var(--text-dim); line-height: 1.7;
+  }
+  .log-entry.open .log-detail { display: block; }
+
+  .empty-state {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 48px 24px; text-align: center;
+  }
+  .empty-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px; font-weight: 600; margin-bottom: 8px;
+  }
+  .empty-sub {
+    font-size: 14px; color: var(--text-dim);
+    max-width: 340px; margin: 0 auto 24px; line-height: 1.7;
+  }
+  .code-block {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px; text-align: left;
+    max-width: 420px; margin: 0 auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-dim); line-height: 1.8;
+    white-space: pre;
+  }
+  .c-blue  { color: var(--blue); }
+  .c-green { color: var(--green); }
+  .c-dim   { color: var(--text-muted); }
+
+  .spinner-wrap {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 48px;
+    font-size: 14px; color: var(--text-dim);
+  }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    text-align: center; padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted); font-size: 13px; margin-top: 48px;
+  }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .log-entry-header { grid-template-columns: 28px 1fr auto; }
+    .log-agent-name, .log-ts { display: none; }
+    .stat-item { min-width: 120px; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">Agent<span>Logs</span></a>
+  <div></div>
+  <div class="nav-cta-wrap">
+    <button class="nav-cta" id="nav-logout" onclick="doLogout()" style="display:none">Logout</button>
+  </div>
+</nav>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="hero-grid"></div>
+  <div class="auth-wrap">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <div id="login-form" class="form-card">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@company.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-submit" id="login-btn" onclick="doLogin()">Login</button>
+      <div class="msg-error" id="login-error"></div>
+    </div>
+
+    <div id="signup-form" class="form-card" style="display:none">
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="signup-company" placeholder="Acme Corp" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@company.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-submit" id="signup-btn" onclick="doSignup()">Create Account</button>
+      <div class="msg-error" id="signup-error"></div>
+      <div class="msg-success" id="signup-success">
+        Account created. Your API key:
+        <div class="apikey-display" id="signup-apikey"></div>
+        Share this with your developer. Now login to view your dashboard.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD SCREEN -->
+<div id="dashboard-screen">
+  <div class="dash-body">
+    <div class="section-tag">// Agent Activity</div>
+    <div class="dash-title">Your agents, <span id="dash-company"></span></div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-num" id="stat-total">—</div>
+        <div class="stat-label">Total Runs</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num green" id="stat-success">—</div>
+        <div class="stat-label">Successful</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num red" id="stat-failed">—</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="stat-rate">—</div>
+        <div class="stat-label">Success Rate</div>
+      </div>
+    </div>
+
+    <div class="apikey-row">
+      <span class="apikey-row-label">API Key</span>
+      <span class="apikey-row-val" id="dash-apikey"></span>
+      <button class="btn-outline" onclick="copyKey()">Copy</button>
+    </div>
+
+    <div class="logs-header">
+      <span class="logs-title">Agent Runs</span>
+      <button class="btn-outline" onclick="loadLogs()">↻ Refresh</button>
+    </div>
+    <div id="logs-container"></div>
+  </div>
+
+  <footer>
+    <div class="logo" style="display:inline;font-size:14px;">Agent<span>Logs</span></div>
+    <p style="margin-top:4px;">© 2026 AgentLogs · Know what your agents did.</p>
+  </footer>
+</div>
+
+<script>
+  const API = "http://localhost:8000";
+  let currentApiKey = null;
+  let currentCompany = null;
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
+    });
+    document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+  }
+
+  async function doSignup() {
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const company = document.getElementById('signup-company').value.trim();
+    const errEl = document.getElementById('signup-error');
+    const sucEl = document.getElementById('signup-success');
+    const btn = document.getElementById('signup-btn');
+    errEl.style.display = 'none'; sucEl.style.display = 'none';
+    if (!email || !password || !company) { errEl.textContent = 'All fields required.'; errEl.style.display = 'block'; return; }
+    btn.disabled = true; btn.textContent = 'Creating...';
+    try {
+      const res = await fetch(`${API}/signup`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email, password, company}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Signup failed');
+      document.getElementById('signup-apikey').textContent = data.api_key;
+      sucEl.style.display = 'block';
+      btn.textContent = 'Account Created ✓';
+    } catch(e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Create Account';
+    }
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+    if (!email || !password) { errEl.textContent = 'Email and password required.'; errEl.style.display = 'block'; return; }
+    btn.disabled = true; btn.textContent = 'Logging in...';
+    try {
+      const res = await fetch(`${API}/login`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Login failed');
+      currentApiKey = data.api_key;
+      currentCompany = data.company;
+      showDashboard();
+    } catch(e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Login';
+    }
+  }
+
+  function showDashboard() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'block';
+    document.getElementById('nav-logout').style.display = 'block';
+    document.getElementById('dash-company').textContent = currentCompany;
+    document.getElementById('dash-apikey').textContent = currentApiKey;
+    loadLogs();
+  }
+
+  async function loadLogs() {
+    const c = document.getElementById('logs-container');
+    c.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div> Fetching agent runs...</div>`;
+    try {
+      const res = await fetch(`${API}/logs`, { headers: {'x-api-key': currentApiKey} });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to load');
+      document.getElementById('stat-total').textContent = data.stats.total_runs;
+      document.getElementById('stat-success').textContent = data.stats.successful;
+      document.getElementById('stat-failed').textContent = data.stats.failed;
+      document.getElementById('stat-rate').textContent = data.stats.success_rate;
+      if (!data.logs || data.logs.length === 0) { renderEmpty(c); return; }
+      c.innerHTML = data.logs.map(renderLog).join('');
+    } catch(e) {
+      c.innerHTML = `<div class="empty-state"><div class="empty-title" style="color:var(--red)">${e.message}</div></div>`;
+    }
+  }
+
+  function renderLog(log) {
+    const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
+    const ok = log.status === 'success';
+    const id = 'l' + Math.random().toString(36).slice(2);
+    return `<div class="log-entry" id="${id}">
+      <div class="log-entry-header" onclick="document.getElementById('${id}').classList.toggle('open')">
+        <div class="log-status-badge ${ok ? 'badge-ok' : 'badge-err'}">${ok ? '✓' : '✗'}</div>
+        <div class="log-agent-name">${log.agent_name || 'agent'}</div>
+        <div class="log-summary-short">${log.summary}</div>
+        <div class="log-ts">${ts}</div>
+        <div class="log-dur">${log.duration_seconds != null ? log.duration_seconds + 's' : ''}</div>
+      </div>
+      <div class="log-detail">${log.summary}</div>
+    </div>`;
+  }
+
+  function renderEmpty(c) {
+    c.innerHTML = `<div class="empty-state">
+      <div class="section-tag" style="margin-bottom:12px">// No activity yet</div>
+      <div class="empty-title">No agent runs found</div>
+      <div class="empty-sub">Install the SDK and add 2 lines to your agent. Logs appear here automatically.</div>
+      <div class="code-block"><span class="c-dim"># Install</span>
+pip install agentlogs
+
+<span class="c-dim"># Add to your agent</span>
+<span class="c-blue">from</span> agentlogs <span class="c-blue">import</span> track
+
+@<span class="c-green">track</span>(api_key=<span class="c-blue">"${currentApiKey}"</span>)
+<span class="c-blue">def</span> <span class="c-green">my_agent</span>(input):
+    ...</div>
+    </div>`;
+  }
+
+  function copyKey() {
+    navigator.clipboard.writeText(currentApiKey);
+    const btn = document.querySelector('.btn-outline');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  }
+
+  function doLogout() {
+    currentApiKey = null; currentCompany = null;
+    document.getElementById('dashboard-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('nav-logout').style.display = 'none';
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-btn').textContent = 'Login';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+  }
+</script>
+</body>
+</html>

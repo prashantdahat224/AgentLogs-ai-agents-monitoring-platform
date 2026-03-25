@@ -47,3 +47,11 @@ def verify_api_key(api_key: str):
         if user["api_key"] == api_key:
             return user
     return None
+
+def verify_login(email: str, password: str):
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    if user["password"] == hash_password(password):
+        return user
+    return None

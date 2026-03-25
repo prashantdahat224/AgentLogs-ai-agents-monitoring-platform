@@ -1,85 +1,87 @@
-# AgentLogs — Backend API
+# AgentLogs
 
-Full transparency into what your AI agents decided and why.
+> Full transparency into what your AI agents decided and why — in plain English.
 
 ## What It Does
 
-AgentLogs- AI agent observability tool 
-that gives businesses full transparency and detailed understanding 
-into what their AI agents did and why.
+Business owners who run AI agents have no idea what those agents are actually doing.
+AgentLogs monitors every agent run and translates it into plain English on a simple dashboard.
+No technical knowledge needed.
 
-## Live Demo
- https://agent-logs-solution.netlify.app/
+```
+Customer triggers agent
+        ↓
+AgentLogs SDK captures input/output/errors silently
+        ↓
+SDK sends raw data → POST /ingest
+        ↓
+Backend verifies API key → Cohere converts to plain English
+        ↓
+Summary saved to database
+        ↓
+Business owner opens dashboard → sees everything clearly
+```
 
-## Tech Stack
-- Python + FastAPI
-- LangSmith (log capture)
-- Anthropic Claude (log conversion)
-- JSON (simple database)
+## Project Structure
+
+```
+agentlogs/
+├── backend/
+│   ├── main.py          → /signup /login /ingest /logs
+│   ├── auth.py          → signup, login, verify api_key
+│   ├── storage.py       → save and fetch logs per user
+│   ├── cohere_client.py → convert raw log to plain English
+│   ├── requirements.txt
+│   └── .env
+│
+├── sdk/
+│   ├── agentlogs/
+│   │   ├── __init__.py
+│   │   └── tracker.py   → the @track decorator
+│   └── setup.py
+│
+└── frontend/
+    └── index.html       → signup + dashboard
+```
 
 ## Setup
 
-### 1. Clone the repo
+### Backend
 ```bash
-git clone https://github.com/prashantdahat224/AgentLogs-ai-agents-monitoring-platform
-cd agentlogs-backend
-```
-
-### 2. Install dependencies
-```bash
+cd backend
 pip install -r requirements.txt
-```
-
-### 3. Add your API keys
-```bash
-# Open .env and add your keys
-```
-
-### 4. Run the server
-```bash
+# Add COHERE_API_KEY to .env
 python main.py
 ```
 
+### SDK (for your clients)
+```bash
+cd sdk
+pip install .
+```
+
+### Frontend
+Open `frontend/index.html` in a browser.
+Update `const API = "..."` to your deployed backend URL.
+
+## Client Integration (2 lines)
+
+```python
+from agentlogs import track
+
+@track(api_key="agentlogs_abc123")
+def my_agent(user_input):
+    # agent logic here
+    return response
+```
+
+That's it. Every run is automatically captured and sent to the dashboard.
+
 ## API Endpoints
 
-### Signup
-```
-POST /signup
-{
-  "email": "company@email.com",
-  "password": "password",
-  "company": "Company Name"
-}
-```
-
-### Get Logs
-```
-POST /logs
-Headers: x-api-key: agentlogs_abcd
-{
-  "project_name": "your_langsmith_project"
-}
-```
-
-### Get Summary
-```
-GET /logs/summary?project_name=your_project
-Headers: x-api-key: agentlogs_abcd
-```
-
-## How It Works
-
-```
-User's agent runs
-      ↓
-LangSmith captures every step
-      ↓
-AgentLogs fetches raw logs
-      ↓
-AgentLogs converts to simple language
-      ↓
-Dashboard displays to business owner
-```
-
-## Deploy
-Deploy on Railway.app or Render.com for free.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /signup | Create account, get API key |
+| POST | /login | Login, get API key back |
+| POST | /ingest | SDK sends raw log (auth via x-api-key header) |
+| GET | /logs | Dashboard fetches plain English logs |

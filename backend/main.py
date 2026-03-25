@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from auth import generate_api_key, verify_api_key, create_user, get_user_by_email
-from langsmith_client import fetch_logs
-from groq_client import convert_logs
+from datetime import datetime
+from auth import generate_api_key, verify_api_key, create_user, get_user_by_email, verify_login
+from storage import store_log, get_logs, get_summary
+from cohere_client import convert_log
 import uvicorn
 
-app = FastAPI(title="AgentLogs API", version="1.0.0")
+app = FastAPI(title="AgentLogs API", version="2.0.0")
 
-# Allow frontend to connect
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,26 +17,34 @@ app.add_middleware(
 )
 
 # ─── Models ───
+
 class SignupRequest(BaseModel):
     email: str
     password: str
     company: str
 
-class LogRequest(BaseModel):
-    project_name: str  # user's LangSmith project name
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class IngestRequest(BaseModel):
+    agent_name: str
+    status: str           # "success" or "error"
+    input: str
+    output: str
+    error: str | None = None
+    duration_seconds: float
 
 # ─── Routes ───
 
 @app.get("/")
 def home():
-    return {"name": "AgentLogs API", "status": "running"}
+    return {"name": "AgentLogs API", "version": "2.0.0", "status": "running"}
 
 
 @app.post("/signup")
 def signup(data: SignupRequest):
-    """
-    Company signs up → gets unique API key
-    """
+    """Business owner signs up → gets unique API key."""
     existing = get_user_by_email(data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -51,56 +59,72 @@ def signup(data: SignupRequest):
     }
 
 
-@app.post("/logs")
-def get_logs(data: LogRequest, x_api_key: str = Header(...)):
-    """
-    Company sends their LangSmith project name
-    AgentLogs fetches + converts + returns human readable logs
-    """
-    # Step 1 - verify their API key
-    user = verify_api_key(x_api_key)
+@app.post("/login")
+def login(data: LoginRequest):
+    """Business owner logs in → gets their API key back."""
+    user = verify_login(data.email, data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-    # Step 2 - fetch raw logs from LangSmith
-    raw_logs = fetch_logs(data.project_name)
-    if not raw_logs:
-        raise HTTPException(status_code=404, detail="No logs found for this project")
-
-    # Step 3 - convert to human readable via Claude
-    readable_logs = convert_logs(raw_logs)
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return {
+        "message": "Login successful",
+        "api_key": user["api_key"],
         "company": user["company"],
-        "project": data.project_name,
-        "total_runs": len(raw_logs),
-        "logs": readable_logs
+        "email": user["email"]
     }
 
 
-@app.get("/logs/summary")
-def get_summary(project_name: str, x_api_key: str = Header(...)):
+@app.post("/ingest")
+def ingest(data: IngestRequest, x_api_key: str = Header(...)):
     """
-    Quick summary of agent runs
+    SDK sends raw agent log here.
+    We verify API key → convert via Cohere → save to DB.
     """
+    # Step 1 — verify API key
     user = verify_api_key(x_api_key)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
-    raw_logs = fetch_logs(project_name)
-    if not raw_logs:
-        raise HTTPException(status_code=404, detail="No logs found")
+    # Step 2 — build raw log dict
+    raw_log = {
+        "agent_name": data.agent_name,
+        "status": data.status,
+        "input": data.input,
+        "output": data.output,
+        "error": data.error,
+        "duration_seconds": data.duration_seconds
+    }
 
-    total = len(raw_logs)
-    successful = len([r for r in raw_logs if r.get("status") == "success"])
-    failed = len([r for r in raw_logs if r.get("status") == "error"])
+    # Step 3 — convert to plain English via Cohere
+    summary = convert_log(raw_log)
+
+    # Step 4 — save to storage
+    log_entry = {
+        "agent_name": data.agent_name,
+        "status": data.status,
+        "duration_seconds": data.duration_seconds,
+        "summary": summary,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    store_log(user["api_key"], log_entry)
+
+    return {"message": "Log ingested", "summary": summary}
+
+
+@app.get("/logs")
+def logs(x_api_key: str = Header(...)):
+    """Business owner's dashboard calls this → returns all plain English logs."""
+    user = verify_api_key(x_api_key)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    user_logs = get_logs(user["api_key"])
+    stats = get_summary(user["api_key"])
 
     return {
-        "project": project_name,
-        "total_runs": total,
-        "successful": successful,
-        "failed": failed,
-        "success_rate": f"{round((successful/total)*100)}%" if total > 0 else "0%"
+        "company": user["company"],
+        "stats": stats,
+        "logs": user_logs
     }
 
 
