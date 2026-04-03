@@ -1,39 +1,58 @@
-import json
 import os
-from datetime import datetime
+import uuid
+from datetime import timedelta
+from dotenv import load_dotenv
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions, QueryOptions
+from couchbase.auth import PasswordAuthenticator
 
-LOGS_FILE = "logs.json"
+load_dotenv()
 
-def load_logs():
-    if not os.path.exists(LOGS_FILE):
-        return {}
-    with open(LOGS_FILE, "r") as f:
-        return json.load(f)
+def get_cluster():
+    auth = PasswordAuthenticator(
+        os.getenv("COUCHBASE_USER"),
+        os.getenv("COUCHBASE_PASSWORD")
+    )
+    cluster = Cluster(
+        os.getenv("COUCHBASE_URL"),
+        ClusterOptions(auth)
+    )
+    cluster.wait_until_ready(timedelta(seconds=10))
+    return cluster
 
-def save_logs(data):
-    with open(LOGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+def get_collection():
+    cluster = get_cluster()
+    bucket = cluster.bucket(os.getenv("COUCHBASE_BUCKET"))
+    return bucket.default_collection()
 
 def store_log(api_key: str, log_entry: dict):
-    """Save a converted log entry linked to the user's API key."""
-    logs = load_logs()
-    if api_key not in logs:
-        logs[api_key] = []
-    logs[api_key].append(log_entry)
-    save_logs(logs)
+    """Save a log entry linked to the user's API key."""
+    collection = get_collection()
+    doc_id = f"log::{api_key}::{uuid.uuid4()}"
+    log_entry["type"] = "log"
+    log_entry["api_key"] = api_key
+    collection.upsert(doc_id, log_entry)
 
 def get_logs(api_key: str) -> list:
     """Fetch all logs for a given API key, newest first."""
-    logs = load_logs()
-    user_logs = logs.get(api_key, [])
-    return list(reversed(user_logs))
+    try:
+        cluster = get_cluster()
+        bucket_name = os.getenv("COUCHBASE_BUCKET")
+        result = cluster.query(
+            f"SELECT * FROM `{bucket_name}` WHERE type='log' AND api_key=$api_key ORDER BY timestamp DESC",
+            QueryOptions(named_parameters={"api_key": api_key})
+        )
+        return [row[bucket_name] for row in result.rows()]
+    except Exception as e:
+        print(f"Error get_logs: {e}")
+        return []
 
 def get_summary(api_key: str) -> dict:
     """Return summary stats for a user's logs."""
-    user_logs = get_logs(api_key)
-    total = len(user_logs)
-    successful = len([l for l in user_logs if l.get("status") == "success"])
-    failed = len([l for l in user_logs if l.get("status") == "error"])
+    logs = get_logs(api_key)
+    total = len(logs)
+    successful = len([l for l in logs if l.get("status") == "success"])
+    failed = len([l for l in logs if l.get("status") == "error"])
     return {
         "total_runs": total,
         "successful": successful,
