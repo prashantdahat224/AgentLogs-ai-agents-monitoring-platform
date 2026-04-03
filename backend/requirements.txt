@@ -3,3 +3,4 @@ uvicorn==0.22.0
 cohere==4.57
 python-dotenv==1.0.1
 pydantic==1.10.12
+couchbase==4.6.0
