@@ -5,26 +5,20 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, QueryOptions
+from couchbase.options import ClusterOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.exceptions import DocumentNotFoundException
 
 load_dotenv()
 
-def get_cluster():
-    auth = PasswordAuthenticator(
-        os.getenv("COUCHBASE_USER"),     # your Couchbase username
-        os.getenv("COUCHBASE_PASSWORD")  # your Couchbase password
-    )
-    cluster = Cluster(
-        os.getenv("COUCHBASE_URL"),      # couchbases://cb.xxxxxx.cloud.couchbase.com
-        ClusterOptions(auth)
-    )
-    cluster.wait_until_ready(timedelta(seconds=10))
-    return cluster
-
 def get_collection():
-    cluster = get_cluster()
-    bucket = cluster.bucket(os.getenv("COUCHBASE_BUCKET"))  # agentlogs
+    auth = PasswordAuthenticator(
+        os.getenv("COUCHBASE_USER"),
+        os.getenv("COUCHBASE_PASSWORD")
+    )
+    cluster = Cluster(os.getenv("COUCHBASE_URL"), ClusterOptions(auth))
+    cluster.wait_until_ready(timedelta(seconds=10))
+    bucket = cluster.bucket(os.getenv("COUCHBASE_BUCKET"))
     return bucket.default_collection()
 
 def hash_password(password: str) -> str:
@@ -37,8 +31,15 @@ def generate_api_key() -> str:
 
 def create_user(email: str, password: str, company: str, api_key: str):
     collection = get_collection()
-    collection.upsert(f"user::{email}", {
-        "type": "user",
+    # Store user by email
+    collection.upsert(f"user::email::{email}", {
+        "email": email,
+        "password": hash_password(password),
+        "company": company,
+        "api_key": api_key
+    })
+    # Store reverse lookup by api_key
+    collection.upsert(f"user::apikey::{api_key}", {
         "email": email,
         "password": hash_password(password),
         "company": company,
@@ -47,28 +48,22 @@ def create_user(email: str, password: str, company: str, api_key: str):
 
 def get_user_by_email(email: str):
     try:
-        cluster = get_cluster()
-        bucket_name = os.getenv("COUCHBASE_BUCKET")
-        result = cluster.query(
-            f"SELECT * FROM `{bucket_name}` WHERE type='user' AND email=$email",
-            QueryOptions(named_parameters={"email": email})
-        )
-        rows = list(result.rows())
-        return rows[0][bucket_name] if rows else None
+        collection = get_collection()
+        result = collection.get(f"user::email::{email}")
+        return result.content_as[dict]
+    except DocumentNotFoundException:
+        return None
     except Exception as e:
         print(f"Error get_user_by_email: {e}")
         return None
 
 def verify_api_key(api_key: str):
     try:
-        cluster = get_cluster()
-        bucket_name = os.getenv("COUCHBASE_BUCKET")
-        result = cluster.query(
-            f"SELECT * FROM `{bucket_name}` WHERE type='user' AND api_key=$api_key",
-            QueryOptions(named_parameters={"api_key": api_key})
-        )
-        rows = list(result.rows())
-        return rows[0][bucket_name] if rows else None
+        collection = get_collection()
+        result = collection.get(f"user::apikey::{api_key}")
+        return result.content_as[dict]
+    except DocumentNotFoundException:
+        return None
     except Exception as e:
         print(f"Error verify_api_key: {e}")
         return None

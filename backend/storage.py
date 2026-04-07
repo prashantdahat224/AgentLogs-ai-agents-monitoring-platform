@@ -1,54 +1,66 @@
 import os
 import uuid
+import json
 from datetime import timedelta
 from dotenv import load_dotenv
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, QueryOptions
+from couchbase.options import ClusterOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.exceptions import DocumentNotFoundException
 
 load_dotenv()
 
-def get_cluster():
+def get_collection():
     auth = PasswordAuthenticator(
         os.getenv("COUCHBASE_USER"),
         os.getenv("COUCHBASE_PASSWORD")
     )
-    cluster = Cluster(
-        os.getenv("COUCHBASE_URL"),
-        ClusterOptions(auth)
-    )
+    cluster = Cluster(os.getenv("COUCHBASE_URL"), ClusterOptions(auth))
     cluster.wait_until_ready(timedelta(seconds=10))
-    return cluster
-
-def get_collection():
-    cluster = get_cluster()
     bucket = cluster.bucket(os.getenv("COUCHBASE_BUCKET"))
     return bucket.default_collection()
 
 def store_log(api_key: str, log_entry: dict):
-    """Save a log entry linked to the user's API key."""
+    """Save log entry and update the logs index for this user."""
     collection = get_collection()
-    doc_id = f"log::{api_key}::{uuid.uuid4()}"
-    log_entry["type"] = "log"
-    log_entry["api_key"] = api_key
-    collection.upsert(doc_id, log_entry)
+    log_id = str(uuid.uuid4())
+    log_entry["log_id"] = log_id
+
+    # Save the individual log document
+    collection.upsert(f"log::{api_key}::{log_id}", log_entry)
+
+    # Update the index document (list of log IDs for this user)
+    index_key = f"logindex::{api_key}"
+    try:
+        result = collection.get(index_key)
+        index = result.content_as[dict]
+        index["ids"].append(log_id)
+    except DocumentNotFoundException:
+        index = {"ids": [log_id]}
+    collection.upsert(index_key, index)
 
 def get_logs(api_key: str) -> list:
     """Fetch all logs for a given API key, newest first."""
     try:
-        cluster = get_cluster()
-        bucket_name = os.getenv("COUCHBASE_BUCKET")
-        result = cluster.query(
-            f"SELECT * FROM `{bucket_name}` WHERE type='log' AND api_key=$api_key ORDER BY timestamp DESC",
-            QueryOptions(named_parameters={"api_key": api_key})
-        )
-        return [row[bucket_name] for row in result.rows()]
+        collection = get_collection()
+        index_key = f"logindex::{api_key}"
+        result = collection.get(index_key)
+        index = result.content_as[dict]
+        logs = []
+        for log_id in index["ids"]:
+            try:
+                log_result = collection.get(f"log::{api_key}::{log_id}")
+                logs.append(log_result.content_as[dict])
+            except DocumentNotFoundException:
+                continue
+        return list(reversed(logs))
+    except DocumentNotFoundException:
+        return []
     except Exception as e:
         print(f"Error get_logs: {e}")
         return []
 
 def get_summary(api_key: str) -> dict:
-    """Return summary stats for a user's logs."""
     logs = get_logs(api_key)
     total = len(logs)
     successful = len([l for l in logs if l.get("status") == "success"])
