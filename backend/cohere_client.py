@@ -32,7 +32,7 @@ Do not use technical terms. No bullet points. Just plain sentences.
 """
 
     response = co.chat(
-        model="command-r",
+        model="command-r-plus-08-2024",
         message=prompt
     )
 
