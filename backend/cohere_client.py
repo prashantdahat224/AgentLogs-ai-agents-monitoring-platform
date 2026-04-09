@@ -31,10 +31,9 @@ Write a 2-3 sentence summary that:
 Do not use technical terms. No bullet points. Just plain sentences.
 """
 
-    response = co.generate(
+    response = co.chat(
         model="command-r",
-        prompt=prompt,
-        max_tokens=200
+        message=prompt
     )
 
-    return response.generations[0].text.strip()
+    return response.text.strip()
