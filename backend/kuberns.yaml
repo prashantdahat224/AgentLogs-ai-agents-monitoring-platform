@@ -1,0 +1,14 @@
+type: web
+name: fastapi-backend
+
+runtime: python
+
+build:
+  type: python
+  requirements: requirements.txt
+
+
+run:
+  command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+port: 8000
